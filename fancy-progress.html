@@ -1,0 +1,133 @@
+<template>
+    <style>
+        :host {
+            display: inline-block;
+        }
+
+        svg {
+            color: #333;
+            display: block;
+            border-radius: 50%;
+            pointer-events: none;
+            background-color: #eee;
+        }
+
+        svg.completed {
+            color: #fff;
+            background-color: #5a5;
+        }
+
+        text {
+            fill: currentColor;
+            text-anchor: middle;
+        }
+
+        circle {
+            fill: none;
+            stroke: #5a5;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.5s ease-in-out;
+        }
+    </style>
+    <svg xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="50%" dy="0.3em">
+            <tspan class="value"></tspan>%
+        </text>
+        <circle></circle>
+    </svg>
+</template>
+<script>
+    (function () {
+        'use strict';
+
+        var componentAttrs = {
+                value: 0,
+                width: 128,
+                thickness: 8,
+                'max-value': 0
+            },
+            componentDocument = document.currentScript.ownerDocument,
+            componentTemplate = componentDocument.querySelector('template');
+
+        window.FancyProgress = class FancyProgress extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({
+                    mode: 'open'
+                });
+                this.shadowRoot.appendChild(
+                    document.importNode(componentTemplate.content, true)
+                );
+                this.svgElement = this.shadowRoot.querySelector('svg');
+                this.valueElement = this.shadowRoot.querySelector('.value');
+                this.circleElement = this.shadowRoot.querySelector('circle');
+            }
+
+            static get observedAttributes() {
+                return Object.keys(componentAttrs);
+            }
+
+            update() {
+                let width = this.width,
+                    halfWidth = width / 2,
+                    thickness = this.thickness,
+                    radius = halfWidth - (thickness / 2),
+                    dashArray = 2 * Math.PI * radius,
+                    percentage = this.getPercentage(),
+                    dashOffset = dashArray / 100 * (100 - percentage),
+                    isCompleted = (percentage === 100);
+
+                if (isCompleted) {
+                    this.dispatchEvent(new CustomEvent('complete'));
+                }
+
+                this.svgElement.setAttributeNS(null, 'width', width);
+                this.svgElement.setAttributeNS(null, 'height', width);
+                this.svgElement.classList.toggle('completed', isCompleted);
+                this.valueElement.textContent = percentage;
+                this.circleElement.setAttributeNS(null, 'r', radius);
+                this.circleElement.setAttributeNS(null, 'cx', halfWidth);
+                this.circleElement.setAttributeNS(null, 'cy', halfWidth);
+                this.circleElement.setAttributeNS(null, 'stroke-width', thickness);
+                this.circleElement.setAttributeNS(null, 'stroke-dasharray', dashArray);
+                this.circleElement.setAttributeNS(null, 'stroke-dashoffset', dashOffset);
+            }
+
+            getPercentage() {
+                let value = this.value,
+                    maxValue = Math.max(value, this.maxValue);
+
+                return (maxValue ? Math.round(100 / maxValue * value) : 0);
+            }
+
+            connectedCallback() {
+                // TODO
+            }
+
+            disconnectedCallback() {
+                // TODO
+            }
+
+            attributeChangedCallback() {
+                this.update();
+            }
+        };
+
+        Object.keys(componentAttrs).forEach(function (attr) {
+            let prop = attr.replace(/-([a-z])/g, function (match, letter) {
+                return letter.toUpperCase();
+            });
+            Object.defineProperty(FancyProgress.prototype, prop, {
+                get: function () {
+                    return Number(this.getAttribute(attr)) || componentAttrs[attr];
+                },
+                set: function (value) {
+                    this.setAttribute(attr, Number(value) || componentAttrs[attr]);
+                }
+            });
+        });
+
+        window.customElements.define('fancy-progress', FancyProgress);
+    })();
+</script>
